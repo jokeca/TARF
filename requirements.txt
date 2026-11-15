@@ -1,0 +1,3 @@
+# Optional: device-model fitting. Simulator and regression tests use no pip packages.
+numpy>=1.23,<3
+scipy>=1.10,<2

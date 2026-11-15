@@ -1,0 +1,111 @@
+#include <string>
+#include "TSU_Base.h"
+
+#define TRTOSTR(TR) (TR->Type == Transaction_Type::READ ? "Read, " : (TR->Type == Transaction_Type::WRITE ? "Write, " : "Erase, ") )
+
+namespace SSD_Components
+{
+	TSU_Base* TSU_Base::_my_instance = NULL;
+
+	TSU_Base::TSU_Base(const sim_object_id_type& id, FTL* ftl, NVM_PHY_ONFI_NVDDR2* NVMController, Flash_Scheduling_Type Type,
+		unsigned int ChannelCount, unsigned int chip_no_per_channel, unsigned int DieNoPerChip, unsigned int PlaneNoPerDie,
+		sim_time_type WriteReasonableSuspensionTimeForRead,
+		sim_time_type EraseReasonableSuspensionTimeForRead,
+		sim_time_type EraseReasonableSuspensionTimeForWrite,
+		bool EraseSuspensionEnabled, bool ProgramSuspensionEnabled)
+		: Sim_Object(id), ftl(ftl), _NVMController(NVMController), type(Type),
+		channel_count(ChannelCount), chip_no_per_channel(chip_no_per_channel), die_no_per_chip(DieNoPerChip), plane_no_per_die(PlaneNoPerDie),
+		eraseSuspensionEnabled(EraseSuspensionEnabled), programSuspensionEnabled(ProgramSuspensionEnabled),
+		writeReasonableSuspensionTimeForRead(WriteReasonableSuspensionTimeForRead), eraseReasonableSuspensionTimeForRead(EraseReasonableSuspensionTimeForRead),
+		eraseReasonableSuspensionTimeForWrite(EraseReasonableSuspensionTimeForWrite), opened_scheduling_reqs(0)
+	{
+		_my_instance = this;
+		Round_robin_turn_of_channel = new flash_chip_ID_type[channel_count];
+		for (unsigned int channelID = 0; channelID < channel_count; channelID++) {
+			Round_robin_turn_of_channel[channelID] = 0;
+		}
+	}
+
+	TSU_Base::~TSU_Base()
+	{
+		delete[] Round_robin_turn_of_channel;
+	}
+
+	void TSU_Base::Setup_triggers()
+	{
+		Sim_Object::Setup_triggers();
+		_NVMController->ConnectToTransactionServicedSignal(handle_transaction_serviced_signal_from_PHY);
+		_NVMController->ConnectToChannelIdleSignal(handle_channel_idle_signal);
+		_NVMController->ConnectToChipIdleSignal(handle_chip_idle_signal);
+	}
+
+	void TSU_Base::handle_transaction_serviced_signal_from_PHY(NVM_Transaction_Flash* transaction)
+	{
+		//TSU does nothing. The generator of the transaction will handle it.
+	}
+
+	void TSU_Base::handle_channel_idle_signal(flash_channel_ID_type channelID)
+	{
+		for (unsigned int i = 0; i < _my_instance->chip_no_per_channel; i++) {
+			//The TSU does not check if the chip is idle or not since it is possible to suspend a busy chip and issue a new command
+			_my_instance->process_chip_requests(_my_instance->_NVMController->Get_chip(channelID, _my_instance->Round_robin_turn_of_channel[channelID]));
+			_my_instance->Round_robin_turn_of_channel[channelID] = (flash_chip_ID_type)(_my_instance->Round_robin_turn_of_channel[channelID] + 1) % _my_instance->chip_no_per_channel;
+
+			//A transaction has been started, so TSU should stop searching for another chip
+			if (_my_instance->_NVMController->Get_channel_status(channelID) == BusChannelStatus::BUSY) {
+				break;
+			}
+		}
+	}
+	
+	void TSU_Base::handle_chip_idle_signal(NVM::FlashMemory::Flash_Chip* chip)
+	{
+		if (_my_instance->_NVMController->Get_channel_status(chip->ChannelID) == BusChannelStatus::IDLE) {
+			_my_instance->process_chip_requests(chip);
+		}
+	}
+
+	void TSU_Base::Report_results_in_XML(std::string name_prefix, Utils::XmlWriter& xmlwriter)
+	{
+	}
+
+	bool TSU_Base::issue_command_to_chip(Flash_Transaction_Queue* primary, Flash_Transaction_Queue* secondary,
+		Transaction_Type transaction_type, bool suspension_required)
+	{
+		if ((!primary || primary->empty()) && (!secondary || secondary->empty())) return false;
+		auto* first = primary && !primary->empty() ? primary->front() : secondary->front();
+		flash_die_ID_type die = first->Address.DieID;
+		bool dispatched = false;
+		for (unsigned i = 0; i < die_no_per_chip; ++i) {
+			transaction_dispatch_slots.clear();
+			// Preserve the baseline's one-command-per-die behavior, but do not
+			// abandon a usable secondary queue when all primary entries wait.
+			for (auto* queue : {primary, secondary}) {
+				if (!queue) continue;
+                auto first_candidate = queue->begin();
+                if (transaction_type == Transaction_Type::READ && queue->Read_index_enabled()
+                    && !queue->First_indexed_read(die, first_candidate)) continue;
+                for (auto it = first_candidate; it != queue->end(); ++it) {
+					auto* transaction = *it;
+					if (transaction->Type != transaction_type || transaction->Address.DieID != die
+						|| !transaction_is_ready(transaction)) continue;
+					transaction->SuspendRequired = suspension_required;
+					transaction_dispatch_slots.push_back(transaction);
+					queue->remove(it);
+					break;
+				}
+				if (!transaction_dispatch_slots.empty()) break;
+			}
+			if (!transaction_dispatch_slots.empty()) {
+				for (auto* transaction : transaction_dispatch_slots) On_transaction_dispatched(transaction);
+				_NVMController->Send_command_to_chip(transaction_dispatch_slots);
+				transaction_dispatch_slots.clear();
+				dispatched = true;
+				if (transaction_type == Transaction_Type::ERASE) break;
+			}
+			die = (die + 1) % die_no_per_chip;
+		}
+		return dispatched;
+	}
+
+}

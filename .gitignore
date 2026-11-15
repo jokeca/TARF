@@ -1,0 +1,11 @@
+code_tarf/MQSim
+code_tarf/build/
+__pycache__/
+*.py[cod]
+.venv/
+outputs/
+*.log
+*.tmp
+.vscode/
+.idea/
+.DS_Store
