@@ -15,11 +15,11 @@ import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 
-ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location('tarf_experiments', ROOT / 'tests/support.py')
+ROOT = Path(__file__).resolve().parents[2]
+SPEC = importlib.util.spec_from_file_location('tarf_experiments', ROOT / 'codes/tests/support.py')
 EXPERIMENTS = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(EXPERIMENTS)
-BINARY = Path(os.environ.get('TARF_TEST_BINARY', ROOT / 'code_tarf/MQSim')).resolve()
+BINARY = Path(os.environ.get('TARF_TEST_BINARY', ROOT / 'codes/MQSim')).resolve()
 
 
 class PartialRefreshTests(unittest.TestCase):

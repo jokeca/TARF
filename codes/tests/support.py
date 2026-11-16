@@ -2,7 +2,7 @@
 import csv,hashlib,json,math
 from pathlib import Path
 import xml.etree.ElementTree as ET
-ROOT=Path(__file__).resolve().parents[1]
+ROOT=Path(__file__).resolve().parents[2]
 
 def sha256(path):
     digest = hashlib.sha256()
@@ -66,7 +66,7 @@ def geometry(name):
 
 def write_config(path, geom, seed):
     # The legacy template declares ASCII despite containing Chinese comments.
-    tree = ET.ElementTree(ET.fromstring((ROOT / "code_tarf/ssdconfig.xml").read_text()))
+    tree = ET.ElementTree(ET.fromstring((ROOT / "codes/ssdconfig.xml").read_text()))
     changes = {"Seed": seed, "Enabled_Preconditioning": "true",
                "IO_Queue_Depth": 4096, "Queue_Fetch_Size": 64,
                "Ideal_Mapping_Table": "true", "Data_Cache_Capacity": 1048576,

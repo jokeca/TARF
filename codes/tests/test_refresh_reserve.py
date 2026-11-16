@@ -10,10 +10,10 @@ import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 
-ROOT=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(ROOT/'tests'))
+ROOT=Path(__file__).resolve().parents[2]
+sys.path.insert(0,str(ROOT/'codes/tests'))
 import support as b
-BINARY=Path(os.environ.get('TARF_TEST_BINARY',ROOT/'code_tarf/MQSim'))
+BINARY=Path(os.environ.get('TARF_TEST_BINARY',ROOT/'codes/MQSim'))
 
 
 class ReserveProgress(unittest.TestCase):

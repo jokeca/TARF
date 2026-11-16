@@ -1,0 +1,10 @@
+equation,symbol,code_key,chip,value,unit
+3,beta_0,beta0,shared,-3.1454924713304635,dimensionless
+3,beta_1,beta_pe,shared,0.28221072508724948,dimensionless
+3,beta_2,beta_diff,shared,2.0357945241726711,dimensionless
+3,beta_3,beta_common,shared,-0.78029489966332577,dimensionless
+3,b_c,chip_bias,Chip1,0,dimensionless
+3,b_c,chip_bias,Chip2,0.45883869538447203,dimensionless
+5,t_0,t0days,Chip1,1.0161596365360437,days
+5,delta,delta,Chip1,0,dimensionless
+5,gamma,gamma,Chip1,0.52542549511421621,dimensionless

@@ -1,16 +1,18 @@
-.PHONY: all test clean
+.PHONY: all test fit clean
 PYTHON ?= python3
 JOBS ?= 4
 all:
-	$(MAKE) -C code_tarf -j$(JOBS)
+	$(MAKE) -C codes -j$(JOBS)
 test: all
-	cd code_tarf && bash tests/run_reliability_test.sh
-	cd code_tarf && bash tests/run_reliability_profile_test.sh
-	cd code_tarf && bash tests/run_reliability_numeric_test.sh
-	cd code_tarf && bash tests/run_read_queue_index_test.sh
-	$(PYTHON) tests/test_refresh_executor.py
-	$(PYTHON) tests/test_partial_refresh.py
-	$(PYTHON) tests/test_refresh_reserve.py
-	$(PYTHON) tests/test_measurement_phase.py
+	cd codes && bash tests/run_reliability_test.sh
+	cd codes && bash tests/run_reliability_profile_test.sh
+	cd codes && bash tests/run_reliability_numeric_test.sh
+	cd codes && bash tests/run_read_queue_index_test.sh
+	$(PYTHON) codes/tests/test_refresh_executor.py
+	$(PYTHON) codes/tests/test_partial_refresh.py
+	$(PYTHON) codes/tests/test_refresh_reserve.py
+	$(PYTHON) codes/tests/test_measurement_phase.py
+fit:
+	$(PYTHON) experiment_scripts/fit_from_csv.py
 clean:
-	$(MAKE) -C code_tarf clean
+	$(MAKE) -C codes clean
